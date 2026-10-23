@@ -1,146 +1,63 @@
-Fork of weewx-interceptor
-As the original repository (https://github.com/matthewwall/weewx-interceptor) is
-no longer maintained, this fork contains latest changes, improvements and bugfixes
+# Device and network reference
 
-weewx-interceptor
-Copyright 2016-2020 Matthew Wall
-Distributed under terms of the GPLv3
+Start with the [installation and basic listener setup](../README.md). These
+examples cover gateways that need network redirection and protocol-specific
+sensor maps. Replace sample addresses and interface names with your own.
 
-This is a driver for weewx that receives and parses network traffic.  It can
-be used with a variety of "internet bridge" devices including:
-
-  - Acurite Internet Bridge (also known as the SmartHub)
-  - Acurite Access
-  - Oregon Scientific LW301/302
-  - Fine Offset HP1000/WH2600
-  - Fine Offset GW1000 (ecowitt protocol)
-  - Fine Offset wifi consoles (including Ambient)
-  - LaCrosse GW1000U
-
-With the device_type set to 'wu-client', it can be used with any weather
-station that sends directly to weather underground, including the Ambient
-S2902 stations and the Acurite Atlas stations via the Acurite Access.
-
-With the device_type set to 'ecowitt-client', it can be used with any weather
-station that sends data using the ecowitt protocol, including the Fine Offset
-GW1000.
-
-This driver is also useful if you want to use an internet-based weather station
-for which the vendor no longer provides online services.  For example, Oregon
-Scientific shut down their internet gateway, so the LW30x stations now try to
-send data to servers that no longer exist.  Acurite shut down their myacurite
-and aculink services, thus abandoning those who purchased the acurite bridge.
-But with a simple DNS entry and the interceptor driver, you can continue to
-receive data from these stations.
-
-There are two modes of operation: listen and sniff.
-
-In listen mode, the driver runs a socket server on a dedicated thread.  Data
-posted to that server are parsed then processed as sensor inputs.
-
-In sniff mode, the driver runs a packet sniffer on a dedicated thread.  Data
-captured by sniffing are parsed then processed as sensor inputs.
-
-Sniff mode is typically used when you want the device to continue to talk to
-the servers it was designed to talk to.  In sniff mode, the interceptor will
-capture data, but will not interfere with communication.  Listen mode is used
-when you want the device to talk to *your* server.  In listen mode, the
-interceptor will capture all communications.  So use listen mode when the
-vendor no longer provides network services.
-
-Many of these devices support more than just a single cluster of wind, rain,
-and temperature/humidity sensors.  The sensor_map associates sensor readings
-with database fields.  You can define your own sensor_map, or you can use the
-sensor_map_extensions to override the default sensor_map.  The sensor_map is
-also used to distinguish between different sensors of the same type, using
-hardware and/or channel identifiers that are broadcast by each sensor.
-
-Warning!  This driver is experimental.  It is fully tested and seems to work
-as designed with the Acurite bridge, the Acurite Access, the Fine Offset
-HP1000 and WH2600, the Oregon Scientific LW stations, the LaCrosse GW1000U,
-and many other devices that use the WU protocol.  However, the implementation
-is a proof-of-concept to help understand how these devices work. My intent is
-to push the components into weewx, at which time the driver will be refactored
-to simplify setup for each type of weather station.
+Files mentioned under `util/` are source examples, not automatically installed
+configuration. Download or clone this repository before using those files.
 
 
-===============================================================================
-Prerequisites
-
-The 'listen' mode (default) has no pre-requisites.
-
-The 'sniff' mode requires installation of the pypcap or pylibpcap module, each
-of which in turn depends on libpcap.  Install the pcap dependencies using pip:
-
-  sudo pip install pypcap
-
-or using apt-get on debian systems:
-
-  sudo apt-get install python-libpcap
-
-
-===============================================================================
-Installation
-
-0) install weewx, select 'Simulator' driver
-
-http://weewx.com/docs/usersguide.htm#installing
-
-1) install the driver
-
-weectl extension install https://github.com/matthewwall/weewx-interceptor/archive/master.zip
-
-3) configure the driver
-
-weectl station reconfigure --driver=user.interceptor --no-prompt
-
-4) start weewx
-
-sudo systemctl restart weewx
-
-
-===============================================================================
-Driver options
+## Driver options
 
 To configure the driver beyond the default values, set parameters in the
-[Interceptor] section of the weewx configuration file.
+`[Interceptor]` section of the WeeWX configuration file.
 
 For example, to listen on port 8000 instead of the default port 80:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = observer
     port = 8000
+```
 
 To provide the hardware name of your weather station:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = observer
     hardware_name = WS-2902A
     port = 8000
+```
 
 To listen on port 8080 on the network interface with address 192.168.0.14:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = lw30x
     port = 8080
     address = 192.168.0.14
+```
 
 To sniff packets from 192.168.0.14 on network interface eth1:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = acurite-bridge
     mode = sniff
     iface = eth1
     pcap_filter = src 192.168.0.14 and dst port 80
+```
 
 For hardware such as the Acurite bridge or LW30x that support multiple remote
 sensors, use the sensor_map to map the sensors to database fields.  For
 example:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = acurite-bridge
@@ -148,7 +65,9 @@ example:
     [[sensor_map]]
         inTemp = temperature.06022.*      # sensor id 06022
         outTemp = temperature.05961.*     # sensor id 05961
+```
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = lw30x
@@ -156,6 +75,7 @@ example:
     [[sensor_map]]
         inTemp = ot.2:*.*      # sensor on channel 2
         outTemp = ot.1:*.*     # sensor on channel 1
+```
 
 For hardware such as the GW1000 that use the ecowitt-client protocol, use the
 sensor_map_extensions to add/modify sensor mappings without having to specify
@@ -164,6 +84,7 @@ temperature sensor as the indoor temperature, and the readings from the fourth
 temperature sensor as the outdoor temperature.  All of the other sensors would
 be mapped using the default sensor mapping for ecowitt-client.
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = ecowitt-client
@@ -173,43 +94,39 @@ be mapped using the default sensor mapping for ecowitt-client.
         inHumidity = humidity_1
         outTemp = temperature_4
         outHumidity = humidity_4
+```
 
 
-===============================================================================
-How to run the driver directly
+## How to run the driver directly
 
-The driver can be run directly for diagnostic purposes.  This can be useful
-when setting up the capture pipeline or for determining the sensor identifiers.
+Use the installed module from the WeeWX Python environment. Stop WeeWX first
+if it uses the same listening port. Replace `/path/to/station/bin` with the
+installed station directory.
 
-For example, to run in sniff mode, looking for acurite bridge sensor data:
+```sh
+PYTHONPATH=/path/to/station/bin python -m user.interceptor --device=acurite-bridge --mode=sniff --iface=eth0 --debug
+```
 
-PYTHONPATH=bin python bin/user/interceptor.py --device=acurite-bridge --mode=sniff --iface=eth0 --filter="src 192.168.0.4 and dst port 80"
-
-To run in listen mode, looking for LW302 sensor data on port 9000:
-
-PYTHONPATH=bin python bin/user/interceptor.py --device=lw30x --mode=listen --port=9000
-
-Specify help for a full list of options:
-
-PYTHONPATH=bin python bin/user/interceptor.py --help
+Sniff mode needs the [packet-capture dependencies](../README.md#capture-existing-http-traffic).
+Parser-only diagnostics accept `--data`; use `--help` for all options.
 
 
-===============================================================================
-Example: Ecowitt GW1000 in listen mode on port 8000
+## Example: Ecowitt GW1000 in listen mode on port 8000
 
 1) Using the WSView app, go to the 'customized' page and configure the GW1000
    to send to the weewx computer on port 8000 using the ecowitt protocol
 
 2) Configure the interceptor
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = ecowitt-client
     port = 8000
+```
 
 
-===============================================================================
-Example: Acurite Bridge in listen mode, traffic redirected by DNS hijack
+## Example: Acurite Bridge in listen mode, traffic redirected by DNS hijack
 
 1) Configure the DNS server for the local network.  Make a DNS entry for one
    (or both) of these names so that they map to the IP address of the computer
@@ -220,14 +137,15 @@ Example: Acurite Bridge in listen mode, traffic redirected by DNS hijack
 
 2) Configure the interceptor
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = acurite-bridge
     port = 80
+```
 
 
-===============================================================================
-Example: LW302 in listen mode, traffic redirected by DNS hijack
+## Example: LW302 in listen mode, traffic redirected by DNS hijack
 
 1) Configure the DNS server for the local network.  Make a DNS entry for this
    name so that it maps to the IP address of the computer running the
@@ -237,32 +155,35 @@ Example: LW302 in listen mode, traffic redirected by DNS hijack
 
 2) Configure the interceptor
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = lw30x
+```
 
 
-===============================================================================
-Example: Observer in listen mode
+## Example: Observer in listen mode
 
 1) Configure the Observer to send data to the computer on which interceptor
    is running.
 
 2) Set parameters in the weewx configuration file:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = observer
+```
 
 
-===============================================================================
-Example: GW1000U
+## Example: GW1000U
 
 1) Use the GAS utility to set the proxy on the gateway to the computer on which
    interceptor is running.
 
 2) Optionally set parameters in the weewx configuration file:
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = lacrosse-bridge
@@ -270,12 +191,12 @@ Example: GW1000U
     sensor_interval = 1 # numer of minutes between sensor updates
     history_interval = 3 # integer value in [0-7]
     ping_interval = 120 # number of seconds between gateway pings
+```
 
 
-===============================================================================
-Example: sniff mode for any WU client
+## Example: sniff mode for any WU client
 
-   This example assumes two network interfaces on the computer running weewx.
+This example assumes two network interfaces on the computer running weewx.
 
 1) Plug the computer into the local network using the first interface (eth0).
    Plug the device into the second interface (eth1).
@@ -286,18 +207,19 @@ Example: sniff mode for any WU client
 2) Set parameters in the weewx configuration file.  The device has IP address
    of X.X.X.X
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = wu-client
     mode = sniff
     iface = eth1
     pcap_filter = src X.X.X.X and dst port 80
+```
 
 
-===============================================================================
-Example: Acurite Bridge in sniff mode
+## Example: Acurite Bridge in sniff mode
 
-   As of Feb2019, sniffing traffic bound for acurite servers no longer works,
+As of Feb2019, sniffing traffic bound for acurite servers no longer works,
    since acurite no longer runs the aculink or myacurite servers.
 
 1) The interceptor must be running on a computer that can see traffic from the
@@ -309,10 +231,12 @@ Example: Acurite Bridge in sniff mode
     
    Using iptables, routing would look something like this:
 
+```sh
 sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 sudo iptables -A FORWARD -i wlan0 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 sudo iptables -A FORWARD -i eth0 -o wlan0 -j ACCEPT
 sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+```
 
    If the acurite bridge is the only device on the wired interface, you must
    also run a DHCP server on the rpi that will give the acurite bridge a valid
@@ -320,20 +244,21 @@ sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
 
 2) Configure the interceptor
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = acurite-bridge
     mode = sniff
     iface = eth0
     pcap_filter = src X.X.X.X and dst port 80
+```
 
   Where X.X.X.X is the IP address of the acurite bridge on the wired interface.
 
 
-===============================================================================
-Example: LW302 in sniff mode
+## Example: LW302 in sniff mode
 
-   As of 2018, sniffing traffic bound for oregon scientific servers no longer
+As of 2018, sniffing traffic bound for oregon scientific servers no longer
    works, since oregon scientific shut down their servers.
 
 1) Plug LW302 into first network interface eth0 on computer running weewx.
@@ -343,16 +268,17 @@ Example: LW302 in sniff mode
 2) Set parameters in the weewx configuration file.  The LW302 has IP address
    of X.X.X.X
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = lw30x
     mode = sniff
     iface = eth0
     pcap_filter = src X.X.X.X and dst port 80
+```
 
 
-===============================================================================
-Example: Acurite Bridge in listen mode, traffic sniffed at router
+## Example: Acurite Bridge in listen mode, traffic sniffed at router
 
 1) Create a script that captures data from the bridge and sends it to the
    computer on which weewx runs.  The router address is Z.Z.Z.Z, the acurite
@@ -360,18 +286,21 @@ Example: Acurite Bridge in listen mode, traffic sniffed at router
 
 #!/bin/sh
 # remote to the router, capture traffic, and send to interceptor
+```sh
 ssh Z.Z.Z.Z "tcpdump -U -w - -i vr1 src X.X.X.X and port 80" | combine-lines.pl | xargs -n 1 curl http://Y.Y.Y.Y:9999 -s -d
+```
 
 2) Configure the interceptor
 
+```ini
 [Interceptor]
     driver = user.interceptor
     device_type = acurite-bridge
     port = 9999
+```
 
 
-===============================================================================
-Reference: Generic configurations
+## Reference: Generic configurations
 
 Here are some example configurations, from simplest to most complicated.
 
@@ -401,8 +330,7 @@ the device to port 9999.  Add a DNS entry so that traffic from the device is
 sent to 'pi' instead of the cloud.
 
 
-===============================================================================
-Reference: How to intercept data
+## Reference: How to intercept data
 
 These are strategies for getting data to the driver when the simple approach
 (direct from device to driver) is not possible:
@@ -429,8 +357,7 @@ In the examples that follow,
   PPPP is the port on which the driver is listening
 
 
-===============================================================================
-1) Hijack DNS
+## 1) Hijack DNS
 
 Change the DNS entry so that the internet bridge device sends directly to the
 driver.  If you control DNS on the network, you can make the internet bridge
@@ -454,13 +381,16 @@ For example, a bind9 configuration looks something like this:
 
 In the file /etc/bind/named.conf.local:
 
+```conf
 zone "hubapi.myacurite.com" {
     type master;
     file "/etc/bind/myacurite.com";
 };
+```
 
 In the file /etc/bind/myacurite.com:
 
+```conf
 $TTL    604800
 @       IN      SOA     dns.hubapi.myacurite.com. root.hubapi.myacurite.com. (
 2016032001 ; Serial
@@ -473,6 +403,7 @@ $TTL    604800
 @       IN      A       Y.Y.Y.Y
 *       IN      A       Y.Y.Y.Y
 *       IN      AAAA    ::1
+```
 
 This will redirect any requests to hubapi.myacurite.com, but it will not
 redirect any requests to myacurite.com.
@@ -482,6 +413,7 @@ the hijacked DNS entry for queries from the weather station, but the standard
 DNS entry for wunderground for every other DNS client query.  Thanks to Lee H-W
 for this very simple DNS solution.
 
+```conf
 view "watson" {
   match-clients { 172.17.1.131/32; }; // weather station
   recursion yes;
@@ -491,10 +423,10 @@ view "watson" {
     file "/etc/bind/override1.zone";
   };
 };
+```
 
 
-===============================================================================
-2) HTTP proxy/redirect
+## 2) HTTP proxy/redirect
 
 Use a proxy to capture HTTP traffic and redirect it to the driver, and use
 DNS hijack or direct configuration of the device to make the internet bridge
@@ -507,29 +439,34 @@ internet bridge to the driver.
 
 In the file /etc/apache2/conf.d/myacurite.conf:
 
+```conf
 RewriteEngine on
 RewriteCond %{HTTP_POST} www.myacurite.com
 RewriteRule ^/weatherstation(.*)$ http://Y.Y.Y.Y/weatherstation$1
+```
 
 2b) Another option is to use an Apache CGI script.  Put a script alias in
 the file /etc/apache2/conf.d/myacurite.conf:
 
+```conf
 ScriptAlias /weatherstation/updateweatherstation/ /usr/lib/cgi-bin/myacurite
+```
 
 and copy the cgi script util/usr/lib/cgi-bin/myacurite to the Apache
 cgi-bin directory (nominally /usr/lib/cgi-bin).
 
 2c) Here is a reverse proxy configuration for the nginx web server:
 
+```conf
 server {
     location /weatherstation/ {
         proxy_pass http://Y.Y.Y.Y:PPPP/;
     }
 }
+```
 
 
-===============================================================================
-3) Packet capture configurations
+## 3) Packet capture configurations
 
 There are many ways to capture traffic.  In each case, traffic is intercepted
 then sent to the driver.  The capture and the driver might run on the same
@@ -551,43 +488,56 @@ Here are examples of how to capture packets:
 
 option 1: redirect traffic using iptables firewall rules
 
+```sh
 iptables -t broute -A BROUTING -p IPv4 --ip-protocol 6 --ip-destination-port 80 -j redirect --redirect-target ACCEPT
 iptables -t nat -A PREROUTING -i br0 -p tcp --dport 80 -j REDIRECT --to-port PPPP
+```
 
 
 option 2: capture using tcpdump, redirect using nc
 
+```sh
 tcpdump -i eth0 src X.X.X.X and port 80 | nc Y.Y.Y.Y PPPP
 tcpdump -i eth0 dst hubapi.myacurite.com and port 80 | nc Y.Y.Y.Y PPPP
+```
 
 
 option 3: capture using ngrep, redirect using nc
 
+```sh
 ngrep -l -q -d eth0 'ether src host X.X.X.X && dst port 80' | nc Y.Y.Y.Y PPPP
+```
 
 
 option 4: capture using tcpdump via a secure connection to the router
 
+```sh
 ssh Z.Z.Z.Z "tcpdump -U -w - -i vr1 src X.X.X.X and port 80" | nc localhost PPPP
+```
 
 
 option 5: capture using ngrep, filter with sed, forward with curl
 
+```sh
 ngrep -l -q -d eth0 'xxxxxxxxxxxx' | sed -u '/mac=/!d' | xargs -n 1 curl http://Y.Y.Y.Y:PPPP -s -d
+```
 
 
 option 6: use stdbuf and strings to extract fragments from tcpdump
 
+```sh
 tcpdump -Anpl -s0 -w - -i eth0 src X.X.X.X and dst port 80 | stdbuf -oL strings -n8 | combine-lines.pl | xargs -n 1 curl http://Y.Y.Y.Y:PPPP -s -d
+```
 
 
 option 7: capture using tcpflow
 
+```sh
 tcpflow -C -i eth0 -s0 tcp dst port 80 | combine-lines.pl | xargs -n 1 curl http://Y.Y.Y.Y:PPPP -s -d
+```
 
 
-===============================================================================
-Here are configurations that use packet capture:
+## Here are configurations that use packet capture:
 
 a) Firewall-on-Router
 
