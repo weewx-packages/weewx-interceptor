@@ -1,5 +1,12 @@
 # WeeWX Interceptor
 
+> [!WARNING]
+> **Newer consoles using Ecowitt HTTP:** Interceptor does **not** support their
+> newer observation fields. Use a dedicated driver such as
+> [Ecowitt HTTP Push](https://github.com/weewx-packages/weewx-ecowitt-http-push)
+> for those fields. The legacy `ecowitt-client` support below does not provide
+> complete support for newer consoles.
+
 Receive weather observations from network bridges and consoles by listening for
 HTTP uploads or capturing their existing HTTP traffic. The driver runs locally
 and supplies LOOP packets to WeeWX.
